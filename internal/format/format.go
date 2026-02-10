@@ -3,11 +3,14 @@ package format
 import (
 	// Standard library dependencies
 	"fmt"
+	"reflect"
+	"strings"
 
 	// Internal dependencies
 	"CloudCutter/models"
 )
 
+// FormatEvent formats the event based on the given format
 func FormatEvent(event models.PurviewEvent, format string) string {
 	switch format {
 	case "log":
@@ -17,6 +20,42 @@ func FormatEvent(event models.PurviewEvent, format string) string {
 	}
 }
 
+// Log format
 func logFormat(event models.PurviewEvent) string {
-	return fmt.Sprintf("%s %s %s %s", event.Timestamp, event.Operation, event.UserID, event.ClientIP)
+	var builder strings.Builder
+	value := reflect.ValueOf(event)
+	valueType := value.Type()
+
+	var ignoreFields = []string{
+		"SourceFile",
+		"Timestamp",
+		"RawData",
+		"AuditData",
+		"Flattened",
+	}
+
+	for i := 0; i < value.NumField(); i++ {
+		field := valueType.Field(i)
+		fieldValue := value.Field(i)
+
+		if shouldIgnore(field.Name, ignoreFields) {
+			continue
+		}
+
+		fmt.Fprintf(&builder, "%-12s: %v\n", field.Name, fieldValue)
+	}
+
+	builder.WriteString("-----------------------")
+
+	return builder.String()
+}
+
+// Helper to check slice containment
+func shouldIgnore(fieldName string, ignoreList []string) bool {
+	for _, ignore := range ignoreList {
+		if fieldName == ignore {
+			return true
+		}
+	}
+	return false
 }

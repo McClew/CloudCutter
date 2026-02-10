@@ -1,10 +1,10 @@
 package models
 
-import "time"
-
 // Normalised Purview log
 type PurviewEvent struct {
-	Timestamp  time.Time              `json:"timestamp"`
+	Date       string                 `json:"date"`
+	Time       string                 `json:"time"`
+	Timestamp  string                 `json:"timestamp"`
 	Operation  string                 `json:"operation"`
 	UserID     string                 `json:"user_id"`
 	ClientIP   string                 `json:"client_ip"`

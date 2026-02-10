@@ -12,11 +12,13 @@ import (
 	"CloudCutter/models"
 )
 
+// Operators and their precedence
 var operators = map[string]int{
 	"OR": 1, "AND": 2,
 	"==": 3, "!=": 3, ">": 3, ">=": 3, "<": 3, "<=": 3,
 }
 
+// Query the events with the given query
 func Query(events []models.PurviewEvent, query string) []models.PurviewEvent {
 	tokens := tokenise(query)
 	rpn := shunt(tokens)
@@ -30,12 +32,15 @@ func Query(events []models.PurviewEvent, query string) []models.PurviewEvent {
 	return filteredEvents
 }
 
+// Helpers
+// Tokenise the query string into tokens
 func tokenise(query string) []string {
 	// Regex to match tokens: strings (single/double quoted), operators, parens, identifiers/numbers
 	re := regexp.MustCompile(`"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|>=|<=|==|!=|[><()]|[\w\.\-]+`)
 	return re.FindAllString(query, -1)
 }
 
+// Shunt the tokens into reverse polish notation
 func shunt(tokens []string) []string {
 	var output []string
 	var stack []string
@@ -76,6 +81,7 @@ func shunt(tokens []string) []string {
 	return output
 }
 
+// Check if the token is a value, not an operator or parenthesis
 func isValue(token string) bool {
 	upper := strings.ToUpper(token)
 	_, isOp := operators[upper]
@@ -83,6 +89,7 @@ func isValue(token string) bool {
 	return !isOp && !isOpOrig && token != "(" && token != ")"
 }
 
+// Evaluate the reverse polish notation
 func evaluate(rpn []string, event models.PurviewEvent) bool {
 	// Must be []any to hold both strings (from resolve) and bools (from compute)
 	var stack []any
@@ -111,6 +118,7 @@ func evaluate(rpn []string, event models.PurviewEvent) bool {
 	return ok && res
 }
 
+// Resolve the value of a token
 func resolveValue(token string, event models.PurviewEvent) string {
 	cleanToken := strings.Trim(token, "\"'")
 	val := reflect.ValueOf(event)
@@ -122,6 +130,8 @@ func resolveValue(token string, event models.PurviewEvent) string {
 	return cleanToken
 }
 
+// Compute the result of an operation
+// This is a bit of a mess, but it works
 func compute(left any, op string, right any) bool {
 	// If it's a logical operation, we expect booleans
 	if op == "AND" || op == "OR" {

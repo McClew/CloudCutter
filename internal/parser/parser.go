@@ -17,7 +17,8 @@ import (
 // Get Purview event columns
 func GetPurviewEventColumns(events []models.PurviewEvent) []string {
 	var columns []string
-	columns = append(columns, "Timestamp")
+	columns = append(columns, "Date")
+	columns = append(columns, "Time")
 	columns = append(columns, "Operation")
 	columns = append(columns, "UserID")
 	columns = append(columns, "ClientIP")
@@ -84,15 +85,25 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 
 				// Extract known top-level fields
 				switch columnName {
-				case "creationtime":
-					// Try standard ISO8601 first
-					if timeValue, err := time.Parse(time.RFC3339, value); err == nil {
-						event.Timestamp = timeValue.UTC()
+				case "creationdate", "creationtime":
+					// Remove leading/trailing spaces
+					cleanValue := strings.TrimSpace(value)
+
+					// Try RFC3339 (This handles the .0000000Z format perfectly)
+					timeValue, err := time.Parse(time.RFC3339, cleanValue)
+
+					if err != nil {
+						// Fallback: Only normalise if RFC3339 failed
+						normalized := strings.Replace(cleanValue, " ", "T", 1)
+						timeValue, err = time.Parse("2006-01-02T15:04:05", normalized)
+					}
+
+					if err == nil {
+						event.Timestamp = timeValue.UTC().Format(time.RFC3339)
+						event.Date = timeValue.UTC().Format("2006-01-02")
+						event.Time = timeValue.UTC().Format("15:04:05")
 					} else {
-						// Fallback formats often seen in MS logs
-						if timeValue, err := time.Parse("2006-01-02T15:04:05.999Z", value); err == nil {
-							event.Timestamp = timeValue.UTC()
-						}
+						fmt.Fprintf(os.Stderr, "failed to parse time '%s': %v\n", cleanValue, err)
 					}
 				case "operation":
 					event.Operation = value

@@ -24,9 +24,5 @@ go.work.sum
 # env file
 .env
 
-# Executable files
-*.exe
-*.exe~
-
 # Test csv files
 *.csv
