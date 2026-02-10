@@ -38,23 +38,23 @@ func logFormat(event models.PurviewEvent) string {
 	for i := 0; i < value.NumField(); i++ {
 		field := valueType.Field(i)
 		fieldValue := value.Field(i)
-		valStr := fmt.Sprintf("%v", fieldValue.Interface())
+		stringValue := fmt.Sprintf("%v", fieldValue.Interface())
 
-		if shouldIgnore(field.Name, ignoreFields) || valStr == "" || valStr == "{}" {
+		if shouldIgnore(field.Name, ignoreFields) || stringValue == "" || stringValue == "{}" || stringValue == "[]" {
 			continue
 		}
 
 		// Try to pretty print JSON fields
 		if field.Name == "Folders" || field.Name == "AffectedItems" || field.Name == "OperationProperties" {
 			var js interface{}
-			if err := json.Unmarshal([]byte(valStr), &js); err == nil {
+			if err := json.Unmarshal([]byte(stringValue), &js); err == nil {
 				if pretty, err := json.MarshalIndent(js, "", "  "); err == nil {
-					valStr = string(pretty)
+					stringValue = string(pretty)
 				}
 			}
 		}
 
-		fmt.Fprintf(&builder, "%-20s: %v\n", field.Name, valStr)
+		fmt.Fprintf(&builder, "%-20s: %v\n", field.Name, stringValue)
 	}
 
 	builder.WriteString("-----------------------")
@@ -69,5 +69,6 @@ func shouldIgnore(fieldName string, ignoreList []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
