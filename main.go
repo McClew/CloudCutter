@@ -6,6 +6,7 @@ import (
 	"os"
 
 	// Internal dependencies
+	"CloudCutter/internal/format"
 	"CloudCutter/internal/parser"
 	"CloudCutter/tools/search"
 
@@ -39,6 +40,7 @@ func main() {
 	// Define flags
 	// - Globals
 	var csvFile string
+
 	rootCommand.PersistentFlags().StringVarP(&csvFile, "filePath", "f", "", "Path to the CSV file to process")
 	rootCommand.MarkPersistentFlagRequired("filePath")
 
@@ -47,9 +49,15 @@ func main() {
 	// - Search
 	var searchQuery string
 	var listColumns bool
+	var outputFormat string
+	var limit int
+	var outputFile string
 
 	searchCommand.Flags().StringVarP(&searchQuery, "query", "q", "", "Search query to filter events")
 	searchCommand.Flags().BoolVarP(&listColumns, "list", "", false, "List all available columns in the CSV")
+	searchCommand.Flags().StringVarP(&outputFormat, "format", "", "log", "Format to output the events in")
+	searchCommand.Flags().IntVarP(&limit, "limit", "l", 0, "Limit the number of events to output")
+	searchCommand.Flags().StringVarP(&outputFile, "outputFile", "o", "", "Output file to write the results to")
 
 	// - Format
 
@@ -79,7 +87,20 @@ func main() {
 			return
 		}
 
-		search.Query(events)
+		// Perform search
+		if searchQuery != "" {
+			filteredEvents := search.Query(events, searchQuery)
+
+			printedCount := 0
+			for _, event := range filteredEvents {
+				if limit > 0 && printedCount >= limit {
+					break
+				}
+
+				fmt.Println(format.FormatEvent(event, outputFormat))
+				printedCount++
+			}
+		}
 	}
 
 	formatCommand.Run = func(cmd *cobra.Command, args []string) {

@@ -27,3 +27,6 @@ go.work.sum
 # Executable files
 *.exe
 *.exe~
+
+# Test csv files
+*.csv
