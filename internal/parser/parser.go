@@ -134,6 +134,8 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 					event.Client = value
 				case "useragent":
 					event.UserAgent = value
+				case "actorinfo":
+					event.ActorInfo = value
 				case "affecteditems":
 					event.AffectedItems = value
 				case "folders":
@@ -212,6 +214,13 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 						if event.UserAgent == "" && keyLower == "useragent" {
 							if stringValue, typeMatch := value.(string); typeMatch {
 								event.UserAgent = stringValue
+							}
+						}
+
+						// Promote ActorInfo
+						if event.ActorInfo == "" && keyLower == "actorinfostring" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.ActorInfo = stringValue
 							}
 						}
 

@@ -16,6 +16,7 @@ type PurviewEvent struct {
 	ClientAppName       string         `json:"client_app_name"`
 	Client              string         `json:"client"`
 	UserAgent           string         `json:"user_agent"`
+	ActorInfo           string         `json:"actor_info"`
 	AffectedItems       string         `json:"affected_items"`
 	Folders             string         `json:"folders"`
 	Folder              string         `json:"folder"`
