@@ -30,6 +30,8 @@ func logFormat(event models.PurviewEvent) string {
 	var ignoreFields = []string{
 		"SourceFile",
 		"Timestamp",
+		"Folders",
+		"Folder",
 		"RawData",
 		"AuditData",
 		"Flattened",
@@ -41,6 +43,36 @@ func logFormat(event models.PurviewEvent) string {
 		stringValue := fmt.Sprintf("%v", fieldValue.Interface())
 
 		if shouldIgnore(field.Name, ignoreFields) || stringValue == "" || stringValue == "{}" || stringValue == "[]" {
+			continue
+		}
+
+		switch field.Name {
+		case "Emails":
+			if len(event.Emails) > 0 {
+				builder.WriteString("Emails:\n")
+				for _, mail := range event.Emails {
+					fmt.Fprintf(&builder, "  - Subject : %s\n", mail.Subject)
+					fmt.Fprintf(&builder, "    Msg ID  : %s\n", mail.InternetMessageID)
+					if mail.SizeInBytes > 0 {
+						fmt.Fprintf(&builder, "    Size    : %d bytes\n", mail.SizeInBytes)
+					}
+				}
+			}
+			continue
+
+		case "Files":
+			if len(event.Files) > 0 {
+				builder.WriteString("Files:\n")
+				for _, file := range event.Files {
+					fmt.Fprintf(&builder, "  - Name    : %s\n", file.FileName)
+					if file.FileExtension != "" {
+						fmt.Fprintf(&builder, "    Ext     : %s\n", file.FileExtension)
+					}
+					if file.ObjectID != "" {
+						fmt.Fprintf(&builder, "    Path    : %s\n", file.ObjectID)
+					}
+				}
+			}
 			continue
 		}
 

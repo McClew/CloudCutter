@@ -16,21 +16,34 @@ import (
 
 // Get Purview event columns
 func GetPurviewEventColumns(events []models.PurviewEvent) []string {
-	var columns []string
-	columns = append(columns, "Date")
-	columns = append(columns, "Time")
-	columns = append(columns, "Operation")
-	columns = append(columns, "UserID")
-	columns = append(columns, "ClientIP")
-	columns = append(columns, "ClientAppName")
-	columns = append(columns, "Client")
-	columns = append(columns, "UserAgent")
-	columns = append(columns, "AffectedItems")
-	columns = append(columns, "Folders")
-	columns = append(columns, "Folder")
-	columns = append(columns, "DestinationFolder")
-
-	return columns
+	return []string{
+		"RecordID",
+		"Date",
+		"Time",
+		"Timestamp",
+		"SigmaRuleTitle",
+		"SigmaRuleDescription",
+		"SigmaRuleSeverity",
+		"SigmaRuleTags",
+		"UserID",
+		"Organisation",
+		"EventSource",
+		"M365Service",
+		"Operation",
+		"OperationProperties",
+		"ClientIP",
+		"ClientAppName",
+		"Client",
+		"UserAgent",
+		"ActorInfo",
+		"AffectedItems",
+		"Folders",
+		"Folder",
+		"DestinationFolder",
+		"SourceFile",
+		"Emails",
+		"Files",
+	}
 }
 
 // Reads Purview CSV and returns a slice of PurviewEvent structs
@@ -284,6 +297,49 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 									event.DestinationFolder = string(jsonBytes)
 								}
 							}
+						}
+
+						// Look for 'Folders' array which often contains 'FolderItems' (Emails)
+						if keyLower == "folders" {
+							if folders, ok := value.([]interface{}); ok {
+								for _, f := range folders {
+									if folderMap, ok := f.(map[string]interface{}); ok {
+										if items, ok := folderMap["FolderItems"].([]interface{}); ok {
+											for _, item := range items {
+												if itemMap, ok := item.(map[string]interface{}); ok {
+													email := models.EmailItem{
+														ID:                fmt.Sprint(itemMap["Id"]),
+														Subject:           fmt.Sprint(itemMap["Subject"]),
+														InternetMessageID: fmt.Sprint(itemMap["InternetMessageId"]),
+													}
+													// Handle numeric size conversion
+													if size, ok := itemMap["SizeInBytes"].(float64); ok {
+														email.SizeInBytes = int64(size)
+													}
+													event.Emails = append(event.Emails, email)
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+
+						// Check if this record is a File/SharePoint operation
+						if keyLower == "sourcefilename" && value != nil {
+							file := models.FileItem{
+								FileName: fmt.Sprint(value),
+							}
+							if ext, ok := auditMap["SourceFileExtension"].(string); ok {
+								file.FileExtension = ext
+							}
+							if site, ok := auditMap["SiteUrl"].(string); ok {
+								file.SiteURL = site
+							}
+							if obj, ok := auditMap["ObjectId"].(string); ok {
+								file.ObjectID = obj
+							}
+							event.Files = append(event.Files, file)
 						}
 					}
 				}
