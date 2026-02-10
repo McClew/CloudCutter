@@ -41,8 +41,8 @@ func main() {
 	// - Globals
 	var csvFile string
 
-	rootCommand.PersistentFlags().StringVarP(&csvFile, "filePath", "f", "", "Path to the CSV file to process")
-	rootCommand.MarkPersistentFlagRequired("filePath")
+	rootCommand.PersistentFlags().StringVarP(&csvFile, "file", "f", "", "Path to the CSV file to process")
+	rootCommand.MarkPersistentFlagRequired("file")
 
 	// - Analyse
 
@@ -59,7 +59,7 @@ func main() {
 	searchCommand.Flags().StringVarP(&outputFormat, "format", "", "log", "Format to output the events in")
 	searchCommand.Flags().IntVarP(&limit, "limit", "l", 0, "Limit the number of events to output")
 	searchCommand.Flags().BoolVarP(&countOnly, "count", "c", false, "Count the number of events")
-	searchCommand.Flags().StringVarP(&outputFile, "outputFile", "o", "", "Output file to write the results to")
+	searchCommand.Flags().StringVarP(&outputFile, "output", "o", "", "Output file to write the results to")
 
 	// Command executions
 	analyseCommand.Run = func(cmd *cobra.Command, args []string) {
