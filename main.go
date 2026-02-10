@@ -21,6 +21,11 @@ func main() {
 		Long:  `Purview Analyser is a tool inspired by Chainsaw to analyse Microsoft Purview CSV exports using Sigma rules.`,
 	}
 
+	rootCommand.SetHelpCommand(&cobra.Command{
+		Use:    "no-help",
+		Hidden: true,
+	})
+
 	var analyseCommand = &cobra.Command{
 		Use:   "analyse",
 		Short: "Analyse a CSV file using Sigma rules",
@@ -55,8 +60,6 @@ func main() {
 	searchCommand.Flags().IntVarP(&limit, "limit", "l", 0, "Limit the number of events to output")
 	searchCommand.Flags().BoolVarP(&countOnly, "count", "c", false, "Count the number of events")
 	searchCommand.Flags().StringVarP(&outputFile, "outputFile", "o", "", "Output file to write the results to")
-
-	// - Format
 
 	// Command executions
 	analyseCommand.Run = func(cmd *cobra.Command, args []string) {
