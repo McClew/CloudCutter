@@ -29,6 +29,7 @@ func Query(events []models.PurviewEvent, query string) []models.PurviewEvent {
 			filteredEvents = append(filteredEvents, event)
 		}
 	}
+
 	return filteredEvents
 }
 
@@ -74,19 +75,21 @@ func shunt(tokens []string) []string {
 			stack = append(stack, opKey)
 		}
 	}
+
 	for len(stack) > 0 {
 		output = append(output, stack[len(stack)-1])
 		stack = stack[:len(stack)-1]
 	}
+
 	return output
 }
 
 // Check if the token is a value, not an operator or parenthesis
 func isValue(token string) bool {
 	upper := strings.ToUpper(token)
-	_, isOp := operators[upper]
-	_, isOpOrig := operators[token]
-	return !isOp && !isOpOrig && token != "(" && token != ")"
+	_, isOperator := operators[upper]
+	_, isOperatorOrig := operators[token]
+	return !isOperator && !isOperatorOrig && token != "(" && token != ")"
 }
 
 // Evaluate the reverse polish notation

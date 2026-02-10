@@ -8,6 +8,7 @@ import (
 	// Internal dependencies
 	"CloudCutter/internal/format"
 	"CloudCutter/internal/parser"
+	"CloudCutter/tools/analysis"
 	"CloudCutter/tools/search"
 
 	// External dependencies
@@ -29,7 +30,6 @@ func main() {
 	var analyseCommand = &cobra.Command{
 		Use:   "analyse",
 		Short: "Analyse a CSV file using Sigma rules",
-		Args:  cobra.ExactArgs(2),
 	}
 
 	var searchCommand = &cobra.Command{
@@ -45,6 +45,10 @@ func main() {
 	rootCommand.MarkPersistentFlagRequired("file")
 
 	// - Analyse
+	var sigmaFilePath string
+
+	analyseCommand.Flags().StringVarP(&sigmaFilePath, "sigma", "s", "", "Path to the Sigma files")
+	analyseCommand.MarkPersistentFlagRequired("sigma")
 
 	// - Search
 	var searchQuery string
@@ -63,10 +67,21 @@ func main() {
 
 	// Command executions
 	analyseCommand.Run = func(cmd *cobra.Command, args []string) {
-		//csvFile := args[0]
-		//sigmaRulesDir := args[1]
+		// Parse the CSV file & return events
+		events := parser.ParsePurviewCSV(csvFile)
 
-		// Function call here
+		filteredEvents := analysis.AnalysePurviewCSV(events, sigmaFilePath)
+
+		if len(filteredEvents) > 0 {
+			printedCount := 0
+			for _, event := range filteredEvents {
+				fmt.Println(format.FormatEvent(event, outputFormat))
+
+				printedCount++
+			}
+		} else {
+			fmt.Println("No matches found...")
+		}
 	}
 
 	searchCommand.Run = func(cmd *cobra.Command, args []string) {
@@ -91,21 +106,25 @@ func main() {
 		if searchQuery != "" {
 			filteredEvents := search.Query(events, searchQuery)
 
-			printedCount := 0
-			for _, event := range filteredEvents {
-				if limit > 0 && printedCount >= limit {
-					break
+			if len(filteredEvents) > 0 {
+				printedCount := 0
+				for _, event := range filteredEvents {
+					if limit > 0 && printedCount >= limit {
+						break
+					}
+
+					if countOnly == false {
+						fmt.Println(format.FormatEvent(event, outputFormat))
+					}
+
+					printedCount++
 				}
 
-				if countOnly == false {
-					fmt.Println(format.FormatEvent(event, outputFormat))
+				if countOnly {
+					fmt.Println(printedCount)
 				}
-
-				printedCount++
-			}
-
-			if countOnly {
-				fmt.Println(printedCount)
+			} else {
+				fmt.Println("No matches found...")
 			}
 		}
 	}
