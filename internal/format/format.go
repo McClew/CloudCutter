@@ -38,11 +38,11 @@ func logFormat(event models.PurviewEvent) string {
 		field := valueType.Field(i)
 		fieldValue := value.Field(i)
 
-		if shouldIgnore(field.Name, ignoreFields) {
+		if shouldIgnore(field.Name, ignoreFields) || fieldValue.String() == "" || fieldValue.String() == "{}" {
 			continue
 		}
 
-		fmt.Fprintf(&builder, "%-12s: %v\n", field.Name, fieldValue)
+		fmt.Fprintf(&builder, "%-20s: %v\n", field.Name, fieldValue)
 	}
 
 	builder.WriteString("-----------------------")

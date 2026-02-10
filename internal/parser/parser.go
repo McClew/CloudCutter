@@ -85,7 +85,9 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 
 				// Extract known top-level fields
 				switch columnName {
-				case "creationdate", "creationtime":
+				case "recordid":
+					event.RecordID = value
+				case "creationdate":
 					// Remove leading/trailing spaces
 					cleanValue := strings.TrimSpace(value)
 
@@ -107,10 +109,20 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 					}
 				case "operation":
 					event.Operation = value
+				case "operationproperties":
+					event.OperationProperties = value
 				case "userid":
 					event.UserID = value
+				case "organizationname":
+					event.Organisation = value
+				case "workload":
+					event.M365Service = value
 				case "clientip":
 					event.ClientIP = value
+				case "clientappname":
+					event.ClientAppName = value
+				case "useragent":
+					event.UserAgent = value
 				}
 			}
 		}
@@ -146,6 +158,41 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 						if event.UserID == "" && (keyLower == "userid" || keyLower == "userkey") {
 							if stringValue, typeMatch := value.(string); typeMatch {
 								event.UserID = stringValue
+							}
+						}
+
+						// Promote Organisation
+						if event.Organisation == "" && keyLower == "organizationname" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.Organisation = stringValue
+							}
+						}
+
+						// Promote OperationProperties
+						if event.OperationProperties == "" && keyLower == "operationproperties" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.OperationProperties = stringValue
+							}
+						}
+
+						// Promote ClientAppName
+						if event.ClientAppName == "" && keyLower == "clientappname" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.ClientAppName = stringValue
+							}
+						}
+
+						// Promote M365Service
+						if event.M365Service == "" && keyLower == "workload" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.M365Service = stringValue
+							}
+						}
+
+						// Promote UserAgent
+						if event.UserAgent == "" && keyLower == "useragent" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.UserAgent = stringValue
 							}
 						}
 					}
