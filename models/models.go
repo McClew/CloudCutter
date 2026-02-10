@@ -1,5 +1,14 @@
 package models
 
+// Sigma rule structure
+type SigmaRule struct {
+	Name        string
+	Description string
+	Severity    string
+	Tags        []string
+	Conditions  map[string]any
+}
+
 // Normalised Purview log
 type PurviewEvent struct {
 	RecordID            string         `json:"record_id"`
