@@ -40,7 +40,7 @@ func AnalysePurviewCSV(events []models.PurviewEvent, sigmaFilePath string) []mod
 				event.SigmaRuleSeverity = rule.Level
 				event.SigmaRuleTags = rule.Tags
 
-				events = append(events, event)
+				filteredEvents = append(events, event)
 			}
 		}
 	}
