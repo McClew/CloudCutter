@@ -14,8 +14,9 @@ import (
 
 // Operators and their precedence
 var operators = map[string]int{
-	"OR": 1, "AND": 2,
-	"==": 3, "!=": 3, ">": 3, ">=": 3, "<": 3, "<=": 3,
+	"OR":  1,
+	"AND": 2,
+	"==":  3, "!=": 3, ">": 3, ">=": 3, "<": 3, "<=": 3, "LIKE": 3,
 }
 
 // Query the events with the given query
@@ -125,11 +126,13 @@ func evaluate(rpn []string, event models.PurviewEvent) bool {
 func resolveValue(token string, event models.PurviewEvent) string {
 	cleanToken := strings.Trim(token, "\"'")
 	val := reflect.ValueOf(event)
+
 	for i := 0; i < val.NumField(); i++ {
 		if strings.EqualFold(val.Type().Field(i).Name, cleanToken) {
 			return fmt.Sprintf("%v", val.Field(i).Interface())
 		}
 	}
+
 	return cleanToken
 }
 
@@ -174,9 +177,9 @@ func compute(left any, op string, right any) bool {
 	// Default to string comparison
 	switch op {
 	case "==":
-		return sLeft == sRight
+		return strings.EqualFold(sLeft, sRight)
 	case "!=":
-		return sLeft != sRight
+		return !strings.EqualFold(sLeft, sRight)
 	case ">":
 		return sLeft > sRight
 	case ">=":
@@ -185,6 +188,8 @@ func compute(left any, op string, right any) bool {
 		return sLeft < sRight
 	case "<=":
 		return sLeft <= sRight
+	case "LIKE":
+		return strings.Contains(sRight, sLeft)
 	}
 	return false
 }

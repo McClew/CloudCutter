@@ -58,7 +58,14 @@ func main() {
 	var countOnly bool
 	var outputFile string
 
-	searchCommand.Flags().StringVarP(&searchQuery, "query", "q", "", "Search query to filter events")
+	searchCommand.Flags().StringVarP(&searchQuery, "query", "q", "",
+		`Search query to filter events. 
+Operators: ==, !=, >, <, >=, <=, LIKE, AND, OR
+Fields:    Operation, UserID, ClientIP, etc.
+Examples:
+  -q "Operation == 'MailItemsAccessed'"
+  -q "Subject LIKE 'Urgent' AND UserID == 'admin@contoso.com'"
+  -q "ClientIP != '127.0.0.1' AND (Operation == 'FileModified' OR Operation == 'MailItemAccessed')"`)
 	searchCommand.Flags().BoolVarP(&listColumns, "list", "", false, "List all available columns in the CSV")
 	searchCommand.Flags().StringVarP(&outputFormat, "format", "", "log", "Format to output the events in")
 	searchCommand.Flags().IntVarP(&limit, "limit", "l", 0, "Limit the number of events to output")
