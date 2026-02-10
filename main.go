@@ -51,12 +51,14 @@ func main() {
 	var listColumns bool
 	var outputFormat string
 	var limit int
+	var countOnly bool
 	var outputFile string
 
 	searchCommand.Flags().StringVarP(&searchQuery, "query", "q", "", "Search query to filter events")
 	searchCommand.Flags().BoolVarP(&listColumns, "list", "", false, "List all available columns in the CSV")
 	searchCommand.Flags().StringVarP(&outputFormat, "format", "", "log", "Format to output the events in")
 	searchCommand.Flags().IntVarP(&limit, "limit", "l", 0, "Limit the number of events to output")
+	searchCommand.Flags().BoolVarP(&countOnly, "count", "c", false, "Count the number of events")
 	searchCommand.Flags().StringVarP(&outputFile, "outputFile", "o", "", "Output file to write the results to")
 
 	// - Format
@@ -97,8 +99,15 @@ func main() {
 					break
 				}
 
-				fmt.Println(format.FormatEvent(event, outputFormat))
+				if countOnly == false {
+					fmt.Println(format.FormatEvent(event, outputFormat))
+				}
+
 				printedCount++
+			}
+
+			if countOnly {
+				fmt.Println(printedCount)
 			}
 		}
 	}

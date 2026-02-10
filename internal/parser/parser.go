@@ -22,6 +22,13 @@ func GetPurviewEventColumns(events []models.PurviewEvent) []string {
 	columns = append(columns, "Operation")
 	columns = append(columns, "UserID")
 	columns = append(columns, "ClientIP")
+	columns = append(columns, "ClientAppName")
+	columns = append(columns, "Client")
+	columns = append(columns, "UserAgent")
+	columns = append(columns, "AffectedItems")
+	columns = append(columns, "Folders")
+	columns = append(columns, "Folder")
+	columns = append(columns, "DestinationFolder")
 
 	return columns
 }
@@ -115,14 +122,26 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 					event.UserID = value
 				case "organizationname":
 					event.Organisation = value
+				case "eventsource":
+					event.EventSource = value
 				case "workload":
 					event.M365Service = value
 				case "clientip":
 					event.ClientIP = value
 				case "clientappname":
 					event.ClientAppName = value
+				case "client":
+					event.Client = value
 				case "useragent":
 					event.UserAgent = value
+				case "affecteditems":
+					event.AffectedItems = value
+				case "folders":
+					event.Folders = value
+				case "folder":
+					event.Folder = value
+				case "destinationfolder":
+					event.DestinationFolder = value
 				}
 			}
 		}
@@ -193,6 +212,68 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 						if event.UserAgent == "" && keyLower == "useragent" {
 							if stringValue, typeMatch := value.(string); typeMatch {
 								event.UserAgent = stringValue
+							}
+						}
+
+						// Promote Client
+						if event.Client == "" && keyLower == "client" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.Client = stringValue
+							}
+						}
+
+						// Promote EventSource
+						if event.EventSource == "" && keyLower == "eventsource" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.EventSource = stringValue
+							}
+						}
+
+						// Promote AffectedItems
+						if event.AffectedItems == "" && keyLower == "affecteditems" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.AffectedItems = stringValue
+							} else {
+								// Marshal complex types (arrays/objects) back to string
+								if jsonBytes, err := json.Marshal(value); err == nil {
+									event.AffectedItems = string(jsonBytes)
+								}
+							}
+						}
+
+						// Promote Folders
+						if event.Folders == "" && keyLower == "folders" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.Folders = stringValue
+							} else {
+								// Marshal complex types (arrays/objects) back to string
+								if jsonBytes, err := json.Marshal(value); err == nil {
+									event.Folders = string(jsonBytes)
+								}
+							}
+						}
+
+						// Promote Folder
+						if event.Folder == "" && keyLower == "folder" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.Folder = stringValue
+							} else {
+								// Marshal complex types (arrays/objects) back to string
+								if jsonBytes, err := json.Marshal(value); err == nil {
+									event.Folder = string(jsonBytes)
+								}
+							}
+						}
+
+						// Promote DestinationFolder
+						if event.DestinationFolder == "" && keyLower == "destinationfolder" {
+							if stringValue, typeMatch := value.(string); typeMatch {
+								event.DestinationFolder = stringValue
+							} else {
+								// Marshal complex types (arrays/objects) back to string
+								if jsonBytes, err := json.Marshal(value); err == nil {
+									event.DestinationFolder = string(jsonBytes)
+								}
 							}
 						}
 					}
