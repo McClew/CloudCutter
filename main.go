@@ -32,11 +32,6 @@ func main() {
 		Short: "Search for a specific term in the CSV file",
 	}
 
-	var formatCommand = &cobra.Command{
-		Use:   "format",
-		Short: "Format a CSV file for better readability",
-	}
-
 	// Define flags
 	// - Globals
 	var csvFile string
@@ -112,19 +107,9 @@ func main() {
 		}
 	}
 
-	formatCommand.Run = func(cmd *cobra.Command, args []string) {
-		csvFile := args[0]
-
-		// Parse the CSV file & return events
-		events := parser.ParsePurviewCSV(csvFile)
-
-		fmt.Println(events)
-	}
-
 	// Add subcommands to the root command
 	rootCommand.AddCommand(analyseCommand)
 	rootCommand.AddCommand(searchCommand)
-	rootCommand.AddCommand(formatCommand)
 
 	// Execute the root command & catch any errors
 	if err := rootCommand.Execute(); err != nil {
