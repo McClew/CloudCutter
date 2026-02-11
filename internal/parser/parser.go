@@ -2,6 +2,8 @@ package parser
 
 import (
 	// Standard library dependencies
+	"CloudCutter/internal/logger"
+	"CloudCutter/models"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -9,9 +11,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	// Internal dependencies
-	"CloudCutter/models"
 )
 
 // Get Purview event columns
@@ -56,6 +55,7 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 		fmt.Fprintf(os.Stderr, "failed to open CSV file: %v\n", err)
 		return nil
 	}
+	logger.Debugf("Opened CSV file: %s", filePath)
 	defer file.Close()
 
 	// Create a new CSV reader
@@ -76,6 +76,7 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 	for index, header := range headers {
 		headerMap[strings.ToLower(strings.TrimSpace(header))] = index
 	}
+	logger.Debugf("Mapped %d CSV headers", len(headerMap))
 
 	var events []models.PurviewEvent
 
@@ -175,6 +176,7 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 				if err := json.Unmarshal([]byte(auditDataStr), &auditMap); err == nil {
 					// Store the parsed audit data in the event struct
 					event.AuditData = auditMap
+					logger.Debugf("Parsed AuditData JSON for RecordID: %s", event.RecordID)
 
 					// Flatten nested JSON fields into the main map
 					for key, value := range auditMap {
@@ -350,5 +352,6 @@ func ParsePurviewCSV(filePath string) []models.PurviewEvent {
 		events = append(events, event)
 	}
 
+	logger.Debugf("Parsed %d events from CSV", len(events))
 	return events
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	// Internal dependencies
+	"CloudCutter/internal/logger"
 	"CloudCutter/models"
 
 	// External dependencies
@@ -17,30 +18,38 @@ import (
 )
 
 func AnalysePurviewCSV(events []models.PurviewEvent, sigmaFilePath string) []models.PurviewEvent {
-	var filteredEvents []models.PurviewEvent
+	var rules []sigma.Rule
 	yamlFilePaths := getYAMLFiles(sigmaFilePath)
-
-	ctx := context.Background()
 
 	for _, file := range yamlFilePaths {
 		contents, err := os.ReadFile(file)
 		if err != nil {
-			return nil
+			continue
 		}
 
-		var rule, _ = sigma.ParseRule(contents)
-		eval := evaluator.ForRule(rule)
+		rule, err := sigma.ParseRule(contents)
+		if err == nil {
+			rules = append(rules, rule)
+		}
+	}
+	logger.Debugf("Loaded %d Sigma rules from %s", len(rules), sigmaFilePath)
 
+	var filteredEvents []models.PurviewEvent
+	ctx := context.Background()
+
+	for _, rule := range rules {
+		eval := evaluator.ForRule(rule)
 		for _, event := range events {
 			result, _ := eval.Matches(ctx, event.Flattened)
 
 			if result.Match {
+				logger.Debugf("Event %s matched Sigma rule: %s", event.RecordID, rule.Title)
 				event.SigmaRuleTitle = rule.Title
 				event.SigmaRuleDescription = rule.Description
 				event.SigmaRuleSeverity = rule.Level
 				event.SigmaRuleTags = rule.Tags
 
-				filteredEvents = append(events, event)
+				filteredEvents = append(filteredEvents, event)
 			}
 		}
 	}

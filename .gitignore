@@ -28,3 +28,6 @@ go.work.sum
 # Sigma rules taken from SigmaHQ GitHub repository
 # https://github.com/SigmaHQ/sigma/tree/master/rules/cloud/m365
 sigma
+
+# Logs
+*.log

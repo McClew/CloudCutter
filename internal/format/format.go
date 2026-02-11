@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strings"
 
-	// Internal dependencies
+	"CloudCutter/internal/logger"
 	"CloudCutter/models"
 )
 
@@ -23,6 +23,7 @@ func FormatEvent(event models.PurviewEvent, format string) string {
 
 // Log format
 func logFormat(event models.PurviewEvent) string {
+	logger.Debugf("Formatting event: %s", event.RecordID)
 	var builder strings.Builder
 	value := reflect.ValueOf(event)
 	valueType := value.Type()

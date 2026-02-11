@@ -7,6 +7,7 @@ import (
 
 	// Internal dependencies
 	"CloudCutter/internal/format"
+	"CloudCutter/internal/logger"
 	"CloudCutter/internal/parser"
 	"CloudCutter/tools/analysis"
 	"CloudCutter/tools/search"
@@ -40,9 +41,24 @@ func main() {
 	// Define flags
 	// - Globals
 	var csvFile string
+	var debug bool
+	var logFile string
 
 	rootCommand.PersistentFlags().StringVarP(&csvFile, "file", "f", "", "Path to the CSV file to process")
+	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug logging")
+	rootCommand.PersistentFlags().StringVarP(&logFile, "log-file", "", "", "Path to the log file to write debug logs to")
 	rootCommand.MarkPersistentFlagRequired("file")
+
+	rootCommand.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		logger.Enabled = debug
+		logger.LogPath = logFile
+		if debug {
+			logger.Debugf("Debug logging enabled")
+			if logFile != "" {
+				logger.Debugf("Logging to file: %s", logFile)
+			}
+		}
+	}
 
 	// - Analyse
 	var sigmaFilePath string

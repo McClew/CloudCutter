@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	// Internal dependencies
+	"CloudCutter/internal/logger"
 	"CloudCutter/models"
 )
 
@@ -22,8 +23,10 @@ var operators = map[string]int{
 // Query the events with the given query
 func Query(events []models.PurviewEvent, query string) []models.PurviewEvent {
 	tokens := tokenise(query)
+	logger.Debugf("Found %d tokens", len(tokens))
 	tokens = preprocessTokens(tokens)
 	rpn := shunt(tokens)
+	logger.Debugf("RPN: %v", rpn)
 
 	var filteredEvents []models.PurviewEvent
 	for _, event := range events {
@@ -150,6 +153,7 @@ func evaluate(rpn []string, event models.PurviewEvent) bool {
 			stack = stack[:len(stack)-2]
 
 			result := compute(left, token, right)
+			logger.Debugf("Compute: %v %s %v -> %v", left, token, right, result)
 			stack = append(stack, result)
 		}
 	}
@@ -173,6 +177,7 @@ func resolveValue(token string, event models.PurviewEvent) any {
 	// 1. Try resolving via struct fields
 	res := resolveRecursive(parts, reflect.ValueOf(event))
 	if res != nil {
+		logger.Debugf("Resolved '%s' via struct fields to '%v'", token, res)
 		return res
 	}
 
@@ -180,6 +185,7 @@ func resolveValue(token string, event models.PurviewEvent) any {
 	if val, ok := event.Flattened[strings.ToLower(parts[0])]; ok {
 		res = resolveRecursive(parts[1:], reflect.ValueOf(val))
 		if res != nil {
+			logger.Debugf("Resolved '%s' via Flattened map to '%v'", token, res)
 			return res
 		}
 	}
