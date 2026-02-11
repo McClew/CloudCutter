@@ -7,10 +7,8 @@ on:
 
 jobs:
   build:
-    name: Build and Release
+    name: Build Binaries
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     strategy:
       matrix:
         include:
@@ -53,14 +51,38 @@ jobs:
           ASSET_NAME="CloudCutter-${{ matrix.os }}-${{ matrix.arch }}"
           if [ "${{ matrix.os }}" = "windows" ]; then
             zip "${ASSET_NAME}.zip" CloudCutter.exe
-            echo "ASSET_PATH=${ASSET_NAME}.zip" >> $GITHUB_ENV
           else
             tar -czvf "${ASSET_NAME}.tar.gz" CloudCutter
-            echo "ASSET_PATH=${ASSET_NAME}.tar.gz" >> $GITHUB_ENV
           fi
 
-      - name: Upload Release Asset
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.os }}-${{ matrix.arch }}
+          path: CloudCutter-*.*
+          retention-days: 1
+
+  release:
+    name: Create Consolidated Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./assets
+          pattern: binaries-*
+          merge-multiple: true
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.ASSET_PATH }}
+          files: ./assets/*
           token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
