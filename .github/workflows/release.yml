@@ -9,6 +9,8 @@ jobs:
   build:
     name: Build and Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -61,5 +63,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ASSET_PATH }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
