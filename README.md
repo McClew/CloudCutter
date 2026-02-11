@@ -55,25 +55,12 @@ Use the `analyse` command to scan your logs against a directory of Sigma rules.
 ### Global Flags
 
 - `-f, --file`: Path to the Microsoft Purview CSV export (required).
-- `-d, --debug`: Enable verbose debug logging to `stderr`.
-- `--log-file`: Path to a file where debug logs should be saved.
 - `--limit`: Limit the number of results displayed.
 
 ## Troubleshooting
 
-### PowerShell Quoting
-PowerShell can sometimes strip double quotes from your search query. If you encounter issues with queries containing spaces, use single quotes inside double quotes for the query string:
-
-**Correct:**
-`.\CloudCutter.exe search ... -q "Emails.Subject == 'Urgent Request'"`
-
-**Incorrect:**
-`.\CloudCutter.exe search ... -q 'Emails.Subject == "Urgent Request"'` (PowerShell may strip the inner quotes)
-
-## Output Formats
-Results can be displayed in several formats using the `--format` flag:
-- `log`: A clean, vertical representation of key event fields (default).
-- `json`: The raw JSON representation of the event.
+- `-d, --debug`: Enable verbose debug logging to `stderr`.
+- `--log-file`: Path to a file where debug logs should be saved.
 
 ## License
 [Insert License Information Here]
