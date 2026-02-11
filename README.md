@@ -22,7 +22,7 @@ Ensure you have [Go](https://go.dev/doc/install) installed, then clone the repos
 go build -o CloudCutter.exe main.go
 ```
 
- - or -
+~ OR ~
 
 Download the latest release from the [releases page](https://github.com/rhysmcclew/CloudCutter/releases).
 
