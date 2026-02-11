@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	// Internal dependencies
 	"CloudCutter/internal/logger"
@@ -291,8 +292,28 @@ func compute(left any, op string, right any) bool {
 	// fmt.Printf("DEBUG: compare '%v' %s '%v'\n", left, op, right)
 
 	// For comparisons, we expect strings/numbers
-	sLeft := fmt.Sprintf("%v", left)
-	sRight := fmt.Sprintf("%v", right)
+	sLeft := strings.TrimSpace(fmt.Sprintf("%v", left))
+	sRight := strings.TrimSpace(fmt.Sprintf("%v", right))
+
+	// Try date/time comparison first
+	tLeft, okL := tryParseTime(sLeft)
+	tRight, okR := tryParseTime(sRight)
+	if okL && okR {
+		switch op {
+		case "==":
+			return tLeft.Equal(tRight)
+		case "!=":
+			return !tLeft.Equal(tRight)
+		case ">":
+			return tLeft.After(tRight)
+		case ">=":
+			return tLeft.After(tRight) || tLeft.Equal(tRight)
+		case "<":
+			return tLeft.Before(tRight)
+		case "<=":
+			return tLeft.Before(tRight) || tLeft.Equal(tRight)
+		}
+	}
 
 	lVal, errL := strconv.ParseFloat(sLeft, 64)
 	rVal, errR := strconv.ParseFloat(sRight, 64)
@@ -353,4 +374,21 @@ func compute(left any, op string, right any) bool {
 		return strings.Contains(strings.ToLower(sLeft), strings.ToLower(sRight))
 	}
 	return false
+}
+
+// tryParseTime attempts to parse a string into a time.Time using common formats
+func tryParseTime(s string) (time.Time, bool) {
+	formats := []string{
+		"2006-01-02",          // Date
+		"15:04:05",            // Time
+		time.RFC3339,          // RFC3339
+		"2006-01-02T15:04:05", // Combined fallback
+	}
+
+	for _, f := range formats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
 }
