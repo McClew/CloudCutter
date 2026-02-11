@@ -100,10 +100,10 @@ Examples:
 			columns := parser.GetPurviewEventColumns(events)
 
 			fmt.Println("Available columns in the CSV:")
+			fmt.Println("-----------------------")
 
 			for _, column := range columns {
-				fmt.Println(column)
-				fmt.Println("")
+				fmt.Println(" - ", column)
 			}
 
 			return
