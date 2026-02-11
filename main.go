@@ -111,6 +111,13 @@ Examples:
 
 		// Perform search
 		if searchQuery != "" {
+			// If there are positional args, append them to the search query
+			// This handles cases where PowerShell strips quotes and splits the query
+			if len(args) > 0 {
+				for _, arg := range args {
+					searchQuery += " " + arg
+				}
+			}
 			filteredEvents := search.Query(events, searchQuery)
 
 			if len(filteredEvents) > 0 {

@@ -22,6 +22,7 @@ var operators = map[string]int{
 // Query the events with the given query
 func Query(events []models.PurviewEvent, query string) []models.PurviewEvent {
 	tokens := tokenise(query)
+	tokens = preprocessTokens(tokens)
 	rpn := shunt(tokens)
 
 	var filteredEvents []models.PurviewEvent
@@ -38,8 +39,46 @@ func Query(events []models.PurviewEvent, query string) []models.PurviewEvent {
 // Tokenise the query string into tokens
 func tokenise(query string) []string {
 	// Regex to match tokens: strings (single/double quoted), operators, parens, identifiers/numbers
-	re := regexp.MustCompile(`"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|>=|<=|==|!=|[><()]|[\w\.\-]+`)
+	re := regexp.MustCompile(`"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|>=|<=|==|!=|[><()]|[^\s()!><=]+`)
 	return re.FindAllString(query, -1)
+}
+
+// preprocessTokens handles cases where PowerShell strips quotes around strings with spaces
+func preprocessTokens(tokens []string) []string {
+	var processed []string
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
+		processed = append(processed, token)
+
+		// Check if it's a comparison operator (==, !=, LIKE, etc.)
+		upper := strings.ToUpper(token)
+		if prec, ok := operators[upper]; ok && prec == 3 {
+			// Look ahead for multiple non-operator tokens
+			var valParts []string
+			j := i + 1
+			for j < len(tokens) {
+				next := tokens[j]
+				nextUpper := strings.ToUpper(next)
+				// Stop if we hit a logical operator or parenthesis
+				if next == "(" || next == ")" || nextUpper == "AND" || nextUpper == "OR" {
+					break
+				}
+				valParts = append(valParts, next)
+				j++
+			}
+
+			if len(valParts) > 1 {
+				// Merge them back together
+				merged := strings.Join(valParts, " ")
+				processed = append(processed, merged)
+				i = j - 1 // Skip the merged parts
+			} else if len(valParts) == 1 {
+				processed = append(processed, valParts[0])
+				i = j - 1
+			}
+		}
+	}
+	return processed
 }
 
 // Shunt the tokens into reverse polish notation
@@ -123,22 +162,116 @@ func evaluate(rpn []string, event models.PurviewEvent) bool {
 }
 
 // Resolve the value of a token
-func resolveValue(token string, event models.PurviewEvent) string {
+func resolveValue(token string, event models.PurviewEvent) any {
 	cleanToken := strings.Trim(token, "\"'")
-	val := reflect.ValueOf(event)
+	if strings.HasPrefix(token, "'") || strings.HasPrefix(token, "\"") {
+		return cleanToken
+	}
 
-	for i := 0; i < val.NumField(); i++ {
-		if strings.EqualFold(val.Type().Field(i).Name, cleanToken) {
-			return fmt.Sprintf("%v", val.Field(i).Interface())
+	parts := strings.Split(cleanToken, ".")
+
+	// 1. Try resolving via struct fields
+	res := resolveRecursive(parts, reflect.ValueOf(event))
+	if res != nil {
+		return res
+	}
+
+	// 2. Try resolving via Flattened map (top level match)
+	if val, ok := event.Flattened[strings.ToLower(parts[0])]; ok {
+		res = resolveRecursive(parts[1:], reflect.ValueOf(val))
+		if res != nil {
+			return res
 		}
 	}
 
-	return cleanToken
+	// 3. Try resolving via AuditData map (case-insensitive key match)
+	for k, v := range event.AuditData {
+		if strings.EqualFold(k, parts[0]) {
+			res = resolveRecursive(parts[1:], reflect.ValueOf(v))
+			if res != nil {
+				return res
+			}
+		}
+	}
+
+	// Fallback for single parts that aren't fields: treat as literal
+	if len(parts) == 1 {
+		return cleanToken
+	}
+
+	return nil
+}
+
+func resolveRecursive(parts []string, val reflect.Value) any {
+	// Handle pointer/interface first to get to the underlying value
+	for val.Kind() == reflect.Ptr || val.Kind() == reflect.Interface {
+		if val.IsNil() {
+			return nil
+		}
+		val = val.Elem()
+	}
+
+	if len(parts) == 0 {
+		if !val.IsValid() {
+			return nil
+		}
+		return val.Interface()
+	}
+
+	switch val.Kind() {
+	case reflect.Slice, reflect.Array:
+		var results []any
+		for i := 0; i < val.Len(); i++ {
+			res := resolveRecursive(parts, val.Index(i))
+			if res != nil {
+				if slice, ok := res.([]any); ok {
+					results = append(results, slice...)
+				} else {
+					results = append(results, res)
+				}
+			}
+		}
+		if len(results) == 0 {
+			return nil
+		}
+		return results
+
+	case reflect.Struct:
+		cleanPart := parts[0]
+		for i := 0; i < val.NumField(); i++ {
+			field := val.Type().Field(i)
+			if strings.EqualFold(field.Name, cleanPart) {
+				return resolveRecursive(parts[1:], val.Field(i))
+			}
+		}
+
+	case reflect.Map:
+		cleanPart := parts[0]
+		for _, key := range val.MapKeys() {
+			keyStr := fmt.Sprint(key.Interface())
+			if strings.EqualFold(keyStr, cleanPart) {
+				return resolveRecursive(parts[1:], val.MapIndex(key))
+			}
+		}
+	}
+
+	return nil
 }
 
 // Compute the result of an operation
 // This is a bit of a mess, but it works
 func compute(left any, op string, right any) bool {
+	// If left is a slice, perform "any" logic
+	if left != nil && reflect.TypeOf(left).Kind() == reflect.Slice {
+		v := reflect.ValueOf(left)
+		for i := 0; i < v.Len(); i++ {
+			if compute(v.Index(i).Interface(), op, right) {
+				return true
+			}
+		}
+		return false
+	}
+
 	// If it's a logical operation, we expect booleans
 	if op == "AND" || op == "OR" {
 		lBool, _ := left.(bool)
@@ -148,6 +281,8 @@ func compute(left any, op string, right any) bool {
 		}
 		return lBool || rBool
 	}
+
+	// fmt.Printf("DEBUG: compare '%v' %s '%v'\n", left, op, right)
 
 	// For comparisons, we expect strings/numbers
 	sLeft := fmt.Sprintf("%v", left)
@@ -189,7 +324,7 @@ func compute(left any, op string, right any) bool {
 	case "<=":
 		return sLeft <= sRight
 	case "LIKE":
-		return strings.Contains(sRight, sLeft)
+		return strings.Contains(strings.ToLower(sLeft), strings.ToLower(sRight))
 	}
 	return false
 }
