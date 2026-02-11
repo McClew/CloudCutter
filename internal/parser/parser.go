@@ -41,7 +41,17 @@ func GetPurviewEventColumns(events []models.PurviewEvent) []string {
 		"DestinationFolder",
 		"SourceFile",
 		"Emails",
+		"Emails.ID",
+		"Emails.Subject",
+		"Emails.InternetMessageId",
+		"Emails.SizeInBytes",
+		"Emails.CreationTime",
 		"Files",
+		"Files.FileName",
+		"Files.FileExtension",
+		"Files.RelativeUrl",
+		"Files.SiteUrl",
+		"Files.ObjectID",
 	}
 }
 
