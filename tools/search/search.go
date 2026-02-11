@@ -330,6 +330,26 @@ func compute(left any, op string, right any) bool {
 	case "<=":
 		return sLeft <= sRight
 	case "LIKE":
+		// Handle SQL-style wildcards (* or %)
+		if strings.ContainsAny(sRight, "*%") {
+			// Convert wildcard pattern to regex
+			pattern := sRight
+			// Escape regex special characters except our wildcards
+			pattern = regexp.QuoteMeta(pattern)
+			// Replace our wildcards with .*
+			// Note: * is escaped as \* by QuoteMeta, but % is not.
+			pattern = strings.ReplaceAll(pattern, "\\*", ".*")
+			pattern = strings.ReplaceAll(pattern, "%", ".*")
+			// Add anchors for full match
+			pattern = "^" + pattern + "$"
+
+			matched, err := regexp.MatchString("(?i)"+pattern, sLeft)
+			if err != nil {
+				return false
+			}
+			return matched
+		}
+		// Fallback to substring match if no wildcards
 		return strings.Contains(strings.ToLower(sLeft), strings.ToLower(sRight))
 	}
 	return false
