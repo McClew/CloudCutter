@@ -9,9 +9,19 @@ import (
 	"strings"
 
 	// Internal dependencies
+	"CloudCutter/internal/format"
 	"CloudCutter/internal/parser"
 	"CloudCutter/models"
 )
+
+// ResultOptions holds configuration for processing results
+type ResultOptions struct {
+	Limit        int
+	CountOnly    bool
+	OutputFormat string
+	OutputFile   string
+	IncludeSigma bool
+}
 
 // ExportToCSV writes a slice of PurviewEvents to a CSV file
 func ExportToCSV(events []models.PurviewEvent, filePath string, includeSigma bool) error {
@@ -109,4 +119,41 @@ func resolveRecursive(parts []string, data any) any {
 	}
 
 	return ""
+}
+
+// ProcessResults handles exporting to CSV and/or printing to terminal
+func ProcessResults(events []models.PurviewEvent, opts ResultOptions) error {
+	if len(events) == 0 {
+		fmt.Println("No matches found...")
+		return nil
+	}
+
+	// Export to CSV if output file is specified
+	if opts.OutputFile != "" {
+		err := ExportToCSV(events, opts.OutputFile, opts.IncludeSigma)
+		if err != nil {
+			return fmt.Errorf("error exporting to CSV: %v", err)
+		}
+		fmt.Printf("Successfully exported %d events to %s\n", len(events), opts.OutputFile)
+	}
+
+	// Output to terminal
+	printedCount := 0
+	for _, event := range events {
+		if opts.Limit > 0 && printedCount >= opts.Limit {
+			break
+		}
+
+		if !opts.CountOnly && opts.OutputFile == "" {
+			fmt.Println(format.FormatEvent(event, opts.OutputFormat))
+		}
+
+		printedCount++
+	}
+
+	if opts.CountOnly {
+		fmt.Println(printedCount)
+	}
+
+	return nil
 }

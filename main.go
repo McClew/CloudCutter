@@ -6,7 +6,7 @@ import (
 	"os"
 
 	// Internal dependencies
-	"CloudCutter/internal/format"
+
 	"CloudCutter/internal/logger"
 	"CloudCutter/internal/output"
 	"CloudCutter/internal/parser"
@@ -24,24 +24,32 @@ var logFile string
 var outputFile string
 
 func main() {
-	var rootCommand = &cobra.Command{
+	// Execute the root command & catch any errors
+	if err := rootCommand().Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func rootCommand() *cobra.Command {
+	var command = &cobra.Command{
 		Use:   "CloudCutter",
 		Short: "A Purview Log Analysis Tool",
 		Long:  `Purview Analyser is a tool inspired by Chainsaw to analyse Microsoft Purview CSV exports using Sigma rules.`,
 	}
 
-	rootCommand.SetHelpCommand(&cobra.Command{
+	command.SetHelpCommand(&cobra.Command{
 		Use:    "no-help",
 		Hidden: true,
 	})
 
-	rootCommand.PersistentFlags().StringVarP(&csvFile, "file", "f", "", "Path to the CSV file to process")
-	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug logging")
-	rootCommand.PersistentFlags().StringVarP(&logFile, "log-file", "", "", "Path to the log file to write debug logs to")
-	rootCommand.PersistentFlags().StringVarP(&outputFile, "output", "o", "", "Output file to write the findings to (CSV)")
-	rootCommand.MarkPersistentFlagRequired("file")
+	command.PersistentFlags().StringVarP(&csvFile, "file", "f", "", "Path to the CSV file to process")
+	command.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug logging")
+	command.PersistentFlags().StringVarP(&logFile, "log-file", "", "", "Path to the log file to write debug logs to")
+	command.PersistentFlags().StringVarP(&outputFile, "output", "o", "", "Output file to write the findings to (CSV)")
+	command.MarkPersistentFlagRequired("file")
 
-	rootCommand.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+	command.PersistentPreRun = func(_ *cobra.Command, _ []string) {
 		logger.Enabled = debug
 		logger.LogPath = logFile
 		if debug {
@@ -53,14 +61,10 @@ func main() {
 	}
 
 	// Add subcommands to the root command
-	rootCommand.AddCommand(analysisCommand())
-	rootCommand.AddCommand(searchCommand())
+	command.AddCommand(analysisCommand())
+	command.AddCommand(searchCommand())
 
-	// Execute the root command & catch any errors
-	if err := rootCommand.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	return command
 }
 
 func searchCommand() *cobra.Command {
@@ -98,7 +102,7 @@ func searchCommand() *cobra.Command {
 	return command
 }
 
-func executeSearch(cmd *cobra.Command, args []string, searchQuery string, listColumns bool, outputFormat string, limit int, countOnly bool) error {
+func executeSearch(_ *cobra.Command, args []string, searchQuery string, listColumns bool, outputFormat string, limit int, countOnly bool) error {
 	// Parse the CSV file & return events
 	events := parser.ParsePurviewCSV(csvFile)
 
@@ -119,7 +123,6 @@ func executeSearch(cmd *cobra.Command, args []string, searchQuery string, listCo
 	// Perform search
 	if searchQuery != "" {
 		// If there are positional args, append them to the search query
-		// This handles cases where PowerShell strips quotes and splits the query
 		if len(args) > 0 {
 			for _, arg := range args {
 				searchQuery += " " + arg
@@ -127,36 +130,13 @@ func executeSearch(cmd *cobra.Command, args []string, searchQuery string, listCo
 		}
 		filteredEvents := search.Query(events, searchQuery)
 
-		if len(filteredEvents) > 0 {
-			// Export to CSV if output file is specified
-			if outputFile != "" {
-				err := output.ExportToCSV(filteredEvents, outputFile, false)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error exporting to CSV: %v\n", err)
-				} else {
-					fmt.Printf("Successfully exported %d events to %s\n", len(filteredEvents), outputFile)
-				}
-			}
-
-			printedCount := 0
-			for _, event := range filteredEvents {
-				if limit > 0 && printedCount >= limit {
-					break
-				}
-
-				if countOnly == false && outputFile == "" {
-					fmt.Println(format.FormatEvent(event, outputFormat))
-				}
-
-				printedCount++
-			}
-
-			if countOnly {
-				fmt.Println(printedCount)
-			}
-		} else {
-			fmt.Println("No matches found...")
-		}
+		return output.ProcessResults(filteredEvents, output.ResultOptions{
+			Limit:        limit,
+			CountOnly:    countOnly,
+			OutputFormat: outputFormat,
+			OutputFile:   outputFile,
+			IncludeSigma: false,
+		})
 	}
 
 	return nil
@@ -166,55 +146,40 @@ func analysisCommand() *cobra.Command {
 	// Variables
 	var sigmaFilePath string
 	var outputFormat string
+	var limit int
+	var countOnly bool
 
 	// Define command
 	var command = &cobra.Command{
 		Use:   "analyse",
 		Short: "Analyse a CSV file using Sigma rules",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return executeAnalysis(cmd, args, sigmaFilePath, outputFormat)
+			return executeAnalysis(cmd, args, sigmaFilePath, outputFormat, limit, countOnly)
 		},
 	}
 
 	// Define flags
 	command.Flags().StringVarP(&sigmaFilePath, "sigma", "s", "", "Path to the Sigma files")
 	command.Flags().StringVarP(&outputFormat, "format", "", "log", "Format to output the events in")
+	command.Flags().IntVarP(&limit, "limit", "l", 0, "Limit the number of events to output")
+	command.Flags().BoolVarP(&countOnly, "count", "c", false, "Count the number of events")
 	command.MarkPersistentFlagRequired("sigma")
 
 	return command
 }
 
-func executeAnalysis(cmd *cobra.Command, args []string, sigmaFilePath string, outputFormat string) error {
+func executeAnalysis(_ *cobra.Command, _ []string, sigmaFilePath string, outputFormat string, limit int, countOnly bool) error {
 	// Parse the CSV file & return events
 	events := parser.ParsePurviewCSV(csvFile)
 
 	// Analyse the events using Sigma rules
 	filteredEvents := analysis.AnalysePurviewCSV(events, sigmaFilePath)
 
-	// Check if there are any filtered events
-	if len(filteredEvents) > 0 {
-		// Export to CSV if output file is specified
-		if outputFile != "" {
-			err := output.ExportToCSV(filteredEvents, outputFile, true)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error exporting to CSV: %v\n", err)
-			} else {
-				fmt.Printf("Successfully exported %d events to %s\n", len(filteredEvents), outputFile)
-			}
-		}
-
-		// Still print to terminal if not just exporting
-		printedCount := 0
-
-		for _, event := range filteredEvents {
-			if outputFile == "" {
-				fmt.Println(format.FormatEvent(event, outputFormat))
-			}
-			printedCount++
-		}
-	} else {
-		fmt.Println("No matches found...")
-	}
-
-	return nil
+	return output.ProcessResults(filteredEvents, output.ResultOptions{
+		Limit:        limit,
+		CountOnly:    countOnly,
+		OutputFormat: outputFormat,
+		OutputFile:   outputFile,
+		IncludeSigma: true,
+	})
 }
