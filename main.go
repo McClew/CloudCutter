@@ -6,7 +6,6 @@ import (
 	"os"
 
 	// Internal dependencies
-
 	"CloudCutter/internal/logger"
 	"CloudCutter/internal/output"
 	"CloudCutter/internal/parser"
@@ -32,26 +31,38 @@ func main() {
 }
 
 func rootCommand() *cobra.Command {
+	// Define the root command
 	var command = &cobra.Command{
 		Use:   "CloudCutter",
 		Short: "A Purview Log Analysis Tool",
 		Long:  `Purview Analyser is a tool inspired by Chainsaw to analyse Microsoft Purview CSV exports using Sigma rules.`,
 	}
 
+	// Disable the default help command
+	// Help is accessed via the -h or --help flags
 	command.SetHelpCommand(&cobra.Command{
 		Use:    "no-help",
 		Hidden: true,
 	})
 
+	// Define persistent flags
 	command.PersistentFlags().StringVarP(&csvFile, "file", "f", "", "Path to the CSV file to process")
 	command.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug logging")
 	command.PersistentFlags().StringVarP(&logFile, "log-file", "", "", "Path to the log file to write debug logs to")
 	command.PersistentFlags().StringVarP(&outputFile, "output", "o", "", "Output file to write the findings to (CSV)")
+
+	// Define required flags
 	command.MarkPersistentFlagRequired("file")
 
+	// Define pre-run function
 	command.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+		// Enable debug logging if the debug flag is set
 		logger.Enabled = debug
+
+		// Set the log file path if the log-file flag is set
 		logger.LogPath = logFile
+
+		// Log debug information
 		if debug {
 			logger.Debugf("Debug logging enabled")
 			if logFile != "" {
@@ -130,6 +141,7 @@ func executeSearch(_ *cobra.Command, args []string, searchQuery string, listColu
 		}
 		filteredEvents := search.Query(events, searchQuery)
 
+		// Process the results
 		return output.ProcessResults(filteredEvents, output.ResultOptions{
 			Limit:        limit,
 			CountOnly:    countOnly,
@@ -175,6 +187,7 @@ func executeAnalysis(_ *cobra.Command, _ []string, sigmaFilePath string, outputF
 	// Analyse the events using Sigma rules
 	filteredEvents := analysis.AnalysePurviewCSV(events, sigmaFilePath)
 
+	// Process the results
 	return output.ProcessResults(filteredEvents, output.ResultOptions{
 		Limit:        limit,
 		CountOnly:    countOnly,
