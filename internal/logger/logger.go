@@ -1,6 +1,7 @@
 package logger
 
 import (
+	// Standard library dependencies
 	"fmt"
 	"os"
 )

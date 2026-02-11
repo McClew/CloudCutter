@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	// Internal dependencies
 	"CloudCutter/internal/logger"
 	"CloudCutter/models"
 )

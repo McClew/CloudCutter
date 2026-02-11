@@ -2,8 +2,6 @@ package parser
 
 import (
 	// Standard library dependencies
-	"CloudCutter/internal/logger"
-	"CloudCutter/models"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -11,19 +9,31 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	// Internal dependencies
+	"CloudCutter/internal/logger"
+	"CloudCutter/models"
 )
 
 // Get Purview event columns
-func GetPurviewEventColumns(events []models.PurviewEvent) []string {
-	return []string{
+func GetPurviewEventColumns(events []models.PurviewEvent, includeSigma bool) []string {
+	cols := []string{
 		"RecordID",
 		"Date",
 		"Time",
 		"Timestamp",
-		"SigmaRuleTitle",
-		"SigmaRuleDescription",
-		"SigmaRuleSeverity",
-		"SigmaRuleTags",
+	}
+
+	if includeSigma {
+		cols = append(cols,
+			"SigmaRuleTitle",
+			"SigmaRuleDescription",
+			"SigmaRuleSeverity",
+			"SigmaRuleTags",
+		)
+	}
+
+	cols = append(cols,
 		"UserID",
 		"Organisation",
 		"EventSource",
@@ -52,7 +62,9 @@ func GetPurviewEventColumns(events []models.PurviewEvent) []string {
 		"Files.RelativeUrl",
 		"Files.SiteUrl",
 		"Files.ObjectID",
-	}
+	)
+
+	return cols
 }
 
 // Reads Purview CSV and returns a slice of PurviewEvent structs

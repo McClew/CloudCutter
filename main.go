@@ -8,6 +8,7 @@ import (
 	// Internal dependencies
 	"CloudCutter/internal/format"
 	"CloudCutter/internal/logger"
+	"CloudCutter/internal/output"
 	"CloudCutter/internal/parser"
 	"CloudCutter/tools/analysis"
 	"CloudCutter/tools/search"
@@ -43,10 +44,12 @@ func main() {
 	var csvFile string
 	var debug bool
 	var logFile string
+	var outputFile string
 
 	rootCommand.PersistentFlags().StringVarP(&csvFile, "file", "f", "", "Path to the CSV file to process")
 	rootCommand.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug logging")
 	rootCommand.PersistentFlags().StringVarP(&logFile, "log-file", "", "", "Path to the log file to write debug logs to")
+	rootCommand.PersistentFlags().StringVarP(&outputFile, "output", "o", "", "Output file to write the findings to (CSV)")
 	rootCommand.MarkPersistentFlagRequired("file")
 
 	rootCommand.PersistentPreRun = func(cmd *cobra.Command, args []string) {
@@ -72,7 +75,6 @@ func main() {
 	var outputFormat string
 	var limit int
 	var countOnly bool
-	var outputFile string
 
 	searchCommand.Flags().StringVarP(&searchQuery, "query", "q", "",
 		`Search query to filter events. 
@@ -86,7 +88,6 @@ Examples:
 	searchCommand.Flags().StringVarP(&outputFormat, "format", "", "log", "Format to output the events in")
 	searchCommand.Flags().IntVarP(&limit, "limit", "l", 0, "Limit the number of events to output")
 	searchCommand.Flags().BoolVarP(&countOnly, "count", "c", false, "Count the number of events")
-	searchCommand.Flags().StringVarP(&outputFile, "output", "o", "", "Output file to write the results to")
 
 	// Command executions
 	analyseCommand.Run = func(cmd *cobra.Command, args []string) {
@@ -96,10 +97,22 @@ Examples:
 		filteredEvents := analysis.AnalysePurviewCSV(events, sigmaFilePath)
 
 		if len(filteredEvents) > 0 {
+			// Export to CSV if output file is specified
+			if outputFile != "" {
+				err := output.ExportToCSV(filteredEvents, outputFile, true)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error exporting to CSV: %v\n", err)
+				} else {
+					fmt.Printf("Successfully exported %d events to %s\n", len(filteredEvents), outputFile)
+				}
+			}
+
+			// Still print to terminal if not just exporting
 			printedCount := 0
 			for _, event := range filteredEvents {
-				fmt.Println(format.FormatEvent(event, outputFormat))
-
+				if outputFile == "" {
+					fmt.Println(format.FormatEvent(event, outputFormat))
+				}
 				printedCount++
 			}
 		} else {
@@ -113,7 +126,7 @@ Examples:
 
 		// List columns from CSV
 		if listColumns {
-			columns := parser.GetPurviewEventColumns(events)
+			columns := parser.GetPurviewEventColumns(events, false)
 
 			fmt.Println("Available columns in the CSV:")
 			fmt.Println("-----------------------")
@@ -137,13 +150,23 @@ Examples:
 			filteredEvents := search.Query(events, searchQuery)
 
 			if len(filteredEvents) > 0 {
+				// Export to CSV if output file is specified
+				if outputFile != "" {
+					err := output.ExportToCSV(filteredEvents, outputFile, false)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error exporting to CSV: %v\n", err)
+					} else {
+						fmt.Printf("Successfully exported %d events to %s\n", len(filteredEvents), outputFile)
+					}
+				}
+
 				printedCount := 0
 				for _, event := range filteredEvents {
 					if limit > 0 && printedCount >= limit {
 						break
 					}
 
-					if countOnly == false {
+					if countOnly == false && outputFile == "" {
 						fmt.Println(format.FormatEvent(event, outputFormat))
 					}
 
