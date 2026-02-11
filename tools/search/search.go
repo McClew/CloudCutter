@@ -23,13 +23,19 @@ var operators = map[string]int{
 
 // Query the events with the given query
 func Query(events []models.PurviewEvent, query string) []models.PurviewEvent {
+	// Tokenise the query string into tokens
 	tokens := tokenise(query)
 	logger.Debugf("Found %d tokens", len(tokens))
+
+	// Preprocess the tokens
 	tokens = preprocessTokens(tokens)
 	rpn := shunt(tokens)
 	logger.Debugf("RPN: %v", rpn)
 
+	// Evaluate the RPN
 	var filteredEvents []models.PurviewEvent
+
+	// Loop through the events & evaluate the RPN
 	for _, event := range events {
 		if evaluate(rpn, event) {
 			filteredEvents = append(filteredEvents, event)
@@ -39,49 +45,63 @@ func Query(events []models.PurviewEvent, query string) []models.PurviewEvent {
 	return filteredEvents
 }
 
-// Helpers
 // Tokenise the query string into tokens
 func tokenise(query string) []string {
 	// Regex to match tokens: strings (single/double quoted), operators, parens, identifiers/numbers
-	re := regexp.MustCompile(`"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|>=|<=|==|!=|[><()]|[^\s()!><=]+`)
-	return re.FindAllString(query, -1)
+	expression := regexp.MustCompile(`"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|>=|<=|==|!=|[><()]|[^\s()!><=]+`)
+	return expression.FindAllString(query, -1)
 }
 
-// preprocessTokens handles cases where PowerShell strips quotes around strings with spaces
+// Preprocess the tokens to handle cases where PowerShell strips quotes around strings with spaces
 func preprocessTokens(tokens []string) []string {
+	// Store the processed tokens
 	var processed []string
-	for i := 0; i < len(tokens); i++ {
-		token := tokens[i]
-		processed = append(processed, token)
 
-		// Check if it's a comparison operator (==, !=, LIKE, etc.)
+	for index := 0; index < len(tokens); index++ {
+		// Preprocess the token
+		token := tokens[index]
+		processed = append(processed, token)
 		upper := strings.ToUpper(token)
-		if prec, ok := operators[upper]; ok && prec == 3 {
-			// Look ahead for multiple non-operator tokens
-			var valParts []string
-			j := i + 1
-			for j < len(tokens) {
-				next := tokens[j]
+
+		// Check if it is a comparison operator
+		if operatorKey, isOperator := operators[upper]; isOperator && operatorKey == 3 {
+			// Store the parts of the comparison
+			var parts []string
+
+			// Get the index of the next token
+			futureIndex := index + 1
+
+			// Loop through the tokens
+			for futureIndex < len(tokens) {
+				// Get the next token
+				next := tokens[futureIndex]
 				nextUpper := strings.ToUpper(next)
-				// Stop if we hit a logical operator or parenthesis
+
+				// Stop if logical operator or parenthesis is found
 				if next == "(" || next == ")" || nextUpper == "AND" || nextUpper == "OR" {
 					break
 				}
-				valParts = append(valParts, next)
-				j++
+
+				// Add the next token to the parts array
+				parts = append(parts, next)
+				futureIndex++
 			}
 
-			if len(valParts) > 1 {
+			// If there are multiple parts
+			if len(parts) > 1 {
 				// Merge them back together
-				merged := strings.Join(valParts, " ")
+				merged := strings.Join(parts, " ")
 				processed = append(processed, merged)
-				i = j - 1 // Skip the merged parts
-			} else if len(valParts) == 1 {
-				processed = append(processed, valParts[0])
-				i = j - 1
+
+				// Skip the merged parts
+				index = futureIndex - 1
+			} else if len(parts) == 1 {
+				processed = append(processed, parts[0])
+				index = futureIndex - 1
 			}
 		}
 	}
+
 	return processed
 }
 
@@ -91,35 +111,45 @@ func shunt(tokens []string) []string {
 	var stack []string
 
 	for _, token := range tokens {
-		upperToken := strings.ToUpper(token) // Normalize AND/OR
+		upperToken := strings.ToUpper(token)
+
+		// Handle the token
+		// Reorder the tokens to reverse polish notation
 		switch {
 		case isValue(token):
 			output = append(output, token)
 		case token == "(":
 			stack = append(stack, token)
 		case token == ")":
+			// Hunt for the matching parenthesis
 			for len(stack) > 0 && stack[len(stack)-1] != "(" {
 				output = append(output, stack[len(stack)-1])
 				stack = stack[:len(stack)-1]
 			}
+
+			// Remove the matching parenthesis
 			if len(stack) > 0 {
 				stack = stack[:len(stack)-1]
 			}
 		default:
-			// Handle AND/OR case sensitivity by checking upperToken
-			opKey := token
+			// Default is an operator
+			operatorKey := token
 			if upperToken == "AND" || upperToken == "OR" {
-				opKey = upperToken
+				operatorKey = upperToken
 			}
 
-			for len(stack) > 0 && stack[len(stack)-1] != "(" && operators[stack[len(stack)-1]] >= operators[opKey] {
+			// Push the operator to the stack
+			for len(stack) > 0 && stack[len(stack)-1] != "(" && operators[stack[len(stack)-1]] >= operators[operatorKey] {
 				output = append(output, stack[len(stack)-1])
 				stack = stack[:len(stack)-1]
 			}
-			stack = append(stack, opKey)
+
+			// Add the operator to the stack
+			stack = append(stack, operatorKey)
 		}
 	}
 
+	// Add any remaining operators to the output
 	for len(stack) > 0 {
 		output = append(output, stack[len(stack)-1])
 		stack = stack[:len(stack)-1]
@@ -130,8 +160,8 @@ func shunt(tokens []string) []string {
 
 // Check if the token is a value, not an operator or parenthesis
 func isValue(token string) bool {
-	upper := strings.ToUpper(token)
-	_, isOperator := operators[upper]
+	upperToken := strings.ToUpper(token)
+	_, isOperator := operators[upperToken]
 	_, isOperatorOrig := operators[token]
 	return !isOperator && !isOperatorOrig && token != "(" && token != ")"
 }
@@ -141,48 +171,65 @@ func evaluate(rpn []string, event models.PurviewEvent) bool {
 	// Must be []any to hold both strings (from resolve) and bools (from compute)
 	var stack []any
 
+	// Evaluate the RPN
 	for _, token := range rpn {
 		if isValue(token) {
+			// Push the value to the stack
 			stack = append(stack, resolveValue(token, event))
 		} else {
+			// If there are not enough values on the stack, return false
 			if len(stack) < 2 {
 				return false
 			}
 
+			// Pop the top two values from the stack
 			right := stack[len(stack)-1]
 			left := stack[len(stack)-2]
 			stack = stack[:len(stack)-2]
 
+			// Compute the result
 			result := compute(left, token, right)
 			logger.Debugf("Compute: %v %s %v -> %v", left, token, right, result)
 			stack = append(stack, result)
 		}
 	}
 
-	if len(stack) == 0 {
+	// If there is not exactly one value on the stack, return false
+	if len(stack) != 1 {
 		return false
 	}
-	res, ok := stack[0].(bool)
-	return ok && res
+
+	// Return the result
+	result, isBool := stack[0].(bool)
+
+	if !isBool {
+		return false
+	}
+
+	return result
 }
 
 // Resolve the value of a token
 func resolveValue(token string, event models.PurviewEvent) any {
+	// Strip the token of quotes
 	cleanToken := strings.Trim(token, "\"'")
+
+	// If the token is a string, return it
 	if strings.HasPrefix(token, "'") || strings.HasPrefix(token, "\"") {
 		return cleanToken
 	}
 
+	// Split the token into parts
 	parts := strings.Split(cleanToken, ".")
 
-	// 1. Try resolving via struct fields
+	// Try resolving via struct fields
 	res := resolveRecursive(parts, reflect.ValueOf(event))
 	if res != nil {
 		logger.Debugf("Resolved '%s' via struct fields to '%v'", token, res)
 		return res
 	}
 
-	// 2. Try resolving via Flattened map (top level match)
+	// Try resolving via Flattened map (top level match)
 	if val, ok := event.Flattened[strings.ToLower(parts[0])]; ok {
 		res = resolveRecursive(parts[1:], reflect.ValueOf(val))
 		if res != nil {
@@ -191,7 +238,7 @@ func resolveValue(token string, event models.PurviewEvent) any {
 		}
 	}
 
-	// 3. Try resolving via AuditData map (case-insensitive key match)
+	// Try resolving via AuditData map (case-insensitive key match)
 	for k, v := range event.AuditData {
 		if strings.EqualFold(k, parts[0]) {
 			res = resolveRecursive(parts[1:], reflect.ValueOf(v))
