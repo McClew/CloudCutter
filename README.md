@@ -24,7 +24,7 @@ go build -o CloudCutter.exe main.go
 
 ~ OR ~
 
-Download the latest release from the [releases page](https://github.com/rhysmcclew/CloudCutter/releases).
+Download the latest release from the [releases page](https://github.com/McClew/CloudCutter/releases/).
 
 ## Usage
 
