@@ -1,6 +1,6 @@
 # CloudCutter
 
-CloudCutter is a powerful, Go-based command-line tool designed to normalise, search, and analyse Microsoft Purview CSV exports. It provides advanced querying capabilities, Sigma rule integration, and chronological data handling to streamline digital forensics and incident response (DFIR) workflows.
+CloudCutter is a powerful, Go-based command-line tool designed to normalise, search, and analyse Microsoft Purview CSV exports based on WeSecureLabs Chainsaw. It provides advanced querying capabilities, Sigma rule integration, and chronological data handling to streamline digital forensics and incident response (DFIR) workflows.
 
 ## Features
 
@@ -21,6 +21,10 @@ Ensure you have [Go](https://go.dev/doc/install) installed, then clone the repos
 ```powershell
 go build -o CloudCutter.exe main.go
 ```
+
+- or -
+
+Download the latest release from the [releases page](https://github.com/rhysmcclew/CloudCutter/releases).
 
 ## Usage
 
